@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import six
 
 from sentry.plugins import providers
-from six.moves.urllib.parse import urlparse
 from sentry.models import Integration
 
 MAX_COMMIT_DATA_REQUESTS = 90
@@ -58,27 +57,23 @@ class VstsRepositoryProvider(providers.IntegrationRepositoryProvider):
         ]
 
     def validate_config(self, organization, config, actor=None):
-        if config.get('url'):
-            installation = self.get_installation(config['integration_id'], organization.id)
-            client = installation.get_client()
+        installation = self.get_installation(config['installation'], organization.id)
+        client = installation.get_client()
 
-            # parse out the repo name and the instance
-            parts = urlparse(config['url'])
-            instance = parts.netloc
-            name = parts.path.rsplit('_git/', 1)[-1]
-            project = config.get('project') or name
+        name = config['name']
+        project = config['project']
 
-            try:
-                repo = client.get_repo(instance, name, project)
-            except Exception as e:
-                installation.raise_error(e)
-            config.update({
-                'instance': instance,
-                'project': project,
-                'name': repo['name'],
-                'external_id': six.text_type(repo['id']),
-                'url': repo['_links']['web']['href'],
-            })
+        try:
+            repo = client.get_repo(installation.instance, name, project)
+        except Exception as e:
+            installation.raise_error(e)
+        config.update({
+            'instance': installation.instance,
+            'project': project,
+            'name': repo['name'],
+            'external_id': six.text_type(repo['id']),
+            'url': repo['_links']['web']['href'],
+        })
         return config
 
     def create_repository(self, organization, data, actor=None):
