@@ -22,54 +22,20 @@ class VstsRepositoryProvider(providers.IntegrationRepositoryProvider):
 
         return integration_model.get_installation(organization_id)
 
-    def get_config(self, organization):
-        choices = []
-        for i in Integration.objects.filter(organizations=organization, provider='vsts'):
-            choices.append((i.id, i.name))
-
-        if not choices:
-            choices = [('', '')]
-        return [
-            {
-                'name': 'integration_id',
-                'label': 'Visual Studio Installation',
-                'type': 'choice',
-                'choices': choices,
-                'initial': choices[0][0],
-                'help': 'Select which %s integration to authenticate with.' % self.name,
-                'required': True,
-            },
-            {
-                'name': 'url',
-                'label': 'Repository URL',
-                'type': 'text',
-                'placeholder': 'e.g. https://example.visualstudio.com/_git/MyFirstProject',
-                'required': True,
-            },
-            {
-                'name': 'project',
-                'label': 'Project Name',
-                'type': 'text',
-                'placeholder': 'e.g. MyFirstProject',
-                'help': 'Optional project name if it does not match the repository name',
-                'required': False,
-            }
-        ]
-
     def validate_config(self, organization, config, actor=None):
+        print('VALIDATE CONFIG')
         installation = self.get_installation(config['installation'], organization.id)
         client = installation.get_client()
 
-        name = config['name']
-        project = config['project']
-
+        repo_id = config['identifier']
+        print('here')
         try:
-            repo = client.get_repo(installation.instance, name, project)
+            repo = client.get_repo(installation.instance, repo_id)
         except Exception as e:
             installation.raise_error(e)
         config.update({
             'instance': installation.instance,
-            'project': project,
+            'project': repo['project']['name'],
             'name': repo['name'],
             'external_id': six.text_type(repo['id']),
             'url': repo['_links']['web']['href'],

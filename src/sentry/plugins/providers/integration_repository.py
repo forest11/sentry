@@ -113,10 +113,10 @@ class IntegrationRepositoryProvider(object):
     def get_config(self, organization):
         raise NotImplementedError
 
-    def validate_config(self, organization, config, actor=None):
+    def validate_config(self, organization, config):
         return config
 
-    def create_repository(self, organization, data, actor=None):
+    def create_repository(self, organization, data):
         raise NotImplementedError
 
     def delete_repository(self, repo, actor=None):
