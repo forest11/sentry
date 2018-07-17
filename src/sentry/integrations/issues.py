@@ -3,10 +3,7 @@ from __future__ import absolute_import
 import logging
 import six
 
-from sentry.models import (
-    Activity, Event, Group, GroupStatus, IntegrationExternalProject,
-    OrganizationIntegration
-)
+from sentry.models import Activity, Event, Group, GroupStatus, IntegrationExternalProject
 from sentry.utils.http import absolute_uri
 from sentry.utils.safe import safe_execute
 
@@ -182,34 +179,30 @@ class IssueSyncMixin(IssueBasicMixin):
         affected_groups = list(
             Group.objects.get_groups_by_external_issue(
                 self.model, issue_key,
+            ).filter(
+                project__organization_id=self.organization_id,
             ).select_related('project'),
         )
 
-        org_integration_to_org_map = dict(
-            OrganizationIntegration.objects.filter(
-                integration=self.model,
-            ).values_list('id', 'organization_id'),
-        )
-
-        external_projects = list(
-            IntegrationExternalProject.objects.filter(
-                organization_integration_id__in=org_integration_to_org_map.keys(),
+        try:
+            external_project = IntegrationExternalProject.objects.get(
+                organization_integration_id=self.org_integration.id,
                 external_id=self.get_external_project_id(data),
-            ),
-        )
-
-        external_projects_by_org = {
-            org_integration_to_org_map[int_external_p.organization_integration_id]: int_external_p
-            for int_external_p in external_projects
-        }
+            )
+        except IntegrationExternalProject.DoesNotExist:
+            logger.warning(
+                'no-project-mapping-found', extra={
+                    'organization_id': self.organization_id,
+                    'integration_id': self.model.id,
+                    'provider': self.model.get_provider(),
+                }
+            )
+            return
 
         groups_to_resolve = []
         groups_to_unresolve = []
 
         for group in affected_groups:
-            external_project = external_projects_by_org.get(group.project.organization_id)
-            if external_project is None:
-                continue
             issue_status = self.get_external_issue_status(data)
 
             # TODO(jess): make sure config validation doesn't
